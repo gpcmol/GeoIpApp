@@ -1,0 +1,36 @@
+buildscript {
+    ext.kotlin_version = '1.1.3'
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+apply plugin: 'kotlin'
+apply plugin: 'application'
+
+mainClassName = 'nl.molnet.app.Main'
+
+defaultTasks 'run'
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'nl.molnet.app.Main'
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    compile 'com.arangodb:arangodb-java-driver-async:4.2.0'
+    compile group: 'com.maxmind.db', name: 'maxmind-db', version: '1.2.2'
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = "2.7"
+}
