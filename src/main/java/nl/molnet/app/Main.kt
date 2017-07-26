@@ -1,112 +1,75 @@
 package nl.molnet.app
 
-import com.arangodb.ArangoDBAsync
-import com.arangodb.ArangoDBException
 import com.arangodb.ArangoDatabaseAsync
-import com.arangodb.model.DocumentCreateOptions
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.maxmind.db.Reader
-import java.io.File
-import java.net.InetAddress
-import com.fasterxml.jackson.databind.JsonNode
+import nl.molnet.app.ArangoDbAccess.initArangoDb
+import nl.molnet.app.ArangoDbAccess.insertBatch
 
-val collectionName = "geoip"
 val dbName = "GeoIpDb"
+val collectionName = "geoip"
+val geoIpFilename = "/data/GeoLite2-City.mmdb"
 
 fun main(args: Array<String>) {
     println("start app")
-    val db = initArangoDb()
-    readFileFromDisk(db)
+    WebApp.start()
+    //Main.import()
+    println("finished app")
 }
 
-fun readFileFromDisk(db: ArangoDatabaseAsync) {
-    val database = File("~/Downloads/GeoLite2-City_20170704/GeoLite2-City.mmdb")
-    val reader = Reader(database)
+object Main {
 
-    var i = 0
-    var batchIndex = 0
+    fun import() {
+        val db = initArangoDb()
+        val reader = GeoSupport.getFileReader(geoIpFilename)
 
-    val batch: MutableList<Any> = mutableListOf()
+        readFileFromDisk(db, reader)
 
-    // "0.0.0.0" -> 255.255.255.255
+        reader.close()
+    }
 
-    for (k in 0..255) {
-        for (l in 0..255) {
-            for (m in 0..255) {
-                for (n in 0..255) {
-                    var ip = "$k.$l.$m.$n"
+    fun readFileFromDisk(db: ArangoDatabaseAsync, reader: Reader) {
+        var insertedIndex = 0
+        var batchIndex = 0
+        var count = 0
 
-                    val address = InetAddress.getByName(ip)
-                    val response = reader.get(address)
+        val batch: MutableList<Any> = mutableListOf()
 
-                    if (response != null) {
-                        val str = printJsonString(response)
-                        batch.add(str)
-                        i++
-                        batchIndex++
+        // "0.0.0.0" -> 255.255.255.255
+
+        for (k in 0..255) {
+            for (l in 0..255) {
+                for (m in 0..255) {
+                    for (n in 0..255) {
+                        var ip = "$k.$l.$m.$n"
+
+                        val geoIpJson = GeoSupport.getGeoIpAddress(reader, ip)
+
+                        if (!geoIpJson.isNullOrEmpty()) {
+                            batch.add(geoIpJson)
+                            insertedIndex++
+                            batchIndex++
+                        }
+
+                        if (batchIndex > 0 && batchIndex % 500 == 0) {
+                            insertBatch(db, batch)
+                            batch.clear()
+                        }
+
+                        if (count % 10000 == 0) {
+                            println("Count=$count")
+                        }
+                        count++
                     }
-
-                    if (batchIndex > 0 && batchIndex % 500 == 0) {
-                        insertBatch(db, batch)
-                        batch.clear()
-                    }
-
-                    //println("$ip=" + response)
                 }
             }
         }
-    }
 
-    // don't forget last chunck
-    if (batch.size > 0){
-        insertBatch(db, batch)
-    }
-
-    println("Total=$i items inserted")
-
-    reader.close()
-}
-
-fun printJsonString(jsonNode: JsonNode): String {
-    try {
-        val mapper = ObjectMapper()
-        val json = mapper.readValue(jsonNode.toString(), Any::class.java)
-        return mapper.writeValueAsString(json)
-    } catch (e: Exception) {
-        return "error json print"
-    }
-}
-
-fun insertBatch(db: ArangoDatabaseAsync, batch: MutableList<Any>) {
-    val params = DocumentCreateOptions().waitForSync(true)
-    val collection = db.collection(collectionName).insertDocuments(batch, params)
-}
-
-fun initArangoDb(): ArangoDatabaseAsync {
-    println("Init DB...")
-
-    val arangoDb = ArangoDBAsync.Builder().host("127.0.0.1", 8529).build()
-
-    try {
-        try {
-            arangoDb.createDatabase(dbName)
-        } catch(e: Exception) {
-            println("db already exists...")
+        // don't forget last chunck
+        if (batch.size > 0) {
+            ArangoDbAccess.insertBatch(db, batch)
         }
 
-        val db = arangoDb.db(dbName)
-
-        try {
-            db.createCollection(collectionName, null)
-        } catch(e: Exception) {
-            println("collection already exists...")
-        }
-
-        return db
-    } catch (e: ArangoDBException) {
-        // todo do some logging
-        //logger.error("Error initializing ArangoDb", e)
+        println("Total=$insertedIndex items inserted")
     }
 
-    throw RuntimeException("Error creating db " + dbName)
 }

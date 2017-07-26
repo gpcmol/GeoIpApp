@@ -28,7 +28,12 @@ repositories {
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     compile 'com.arangodb:arangodb-java-driver-async:4.2.0'
-    compile group: 'com.maxmind.db', name: 'maxmind-db', version: '1.2.2'
+    compile 'com.maxmind.db:maxmind-db:1.2.2'
+    compile "io.vertx:vertx-core:3.3.0"
+    compile 'io.vertx:vertx-rx-java:3.3.0'
+    compile 'io.vertx:vertx-web:3.3.0'
+    compile 'io.vertx:vertx-hazelcast:3.3.0'
+    compile 'io.vertx:vertx-lang-js:3.3.0'
 }
 
 task wrapper(type: Wrapper) {
