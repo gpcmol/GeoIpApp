@@ -1,15 +1,21 @@
 buildscript {
-    ext.kotlin_version = '1.1.3'
+    version = '1.0'
+    ext.kotlin_version = '1.1.3-2'
     repositories {
         mavenCentral()
+        jcenter()
     }
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath 'com.bmuschko:gradle-docker-plugin:3.0.12'
     }
 }
 
 apply plugin: 'kotlin'
 apply plugin: 'application'
+apply plugin: 'com.bmuschko.docker-remote-api'
+
+import com.bmuschko.gradle.docker.tasks.image.*
 
 mainClassName = 'nl.molnet.app.Main'
 
@@ -34,8 +40,28 @@ dependencies {
     compile 'io.vertx:vertx-web:3.3.0'
     compile 'io.vertx:vertx-hazelcast:3.3.0'
     compile 'io.vertx:vertx-lang-js:3.3.0'
+    compile 'com.google.guava:guava:19.0'
+    compile 'org.slf4j:slf4j-simple:1.7.25'
+}
+
+//create a single Jar with all dependencies
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Implementation-Title': 'Gradle Jar File Example',
+                'Implementation-Version': version,
+                'Main-Class': 'nl.molnet.app.Main'
+    }
+    baseName = project.name + '-all'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+
+task buildDockerImage(type: DockerBuildImage, dependsOn: fatJar) {
+    inputDir = project.projectDir
+    dockerFile = project.file('docker/Dockerfile')
+    tags = ["molnet/geoipapp"]
 }
 
 task wrapper(type: Wrapper) {
-    gradleVersion = "2.7"
+    gradleVersion = "2.8"
 }
