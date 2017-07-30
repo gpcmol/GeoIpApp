@@ -8,17 +8,22 @@ import java.util.concurrent.CompletableFuture
 
 object ArangoDbAccess {
 
-    val user = ""
-    val password = ""
+    val host = AppConfig.ARANGO_HOST
+    val port = AppConfig.ARANGO_PORT.toInt()
+    val user = AppConfig.ARANGO_USER
+    val password = AppConfig.ARANGO_PASSWORD
 
-    fun insertBatch(db: ArangoDatabaseAsync, batch: MutableList<Any>) {
+    val database by lazy {
+        initArangoDb()
+    }
+
+    fun insertBatch(batch: MutableList<Any>) {
         val params = DocumentCreateOptions().waitForSync(true)
-        val collection = db.collection(collectionName).insertDocuments(batch, params)
+        val collection = database.collection(collectionName).insertDocuments(batch, params)
     }
 
     fun getDocumentByKey(key: String) : CompletableFuture<String> {
-        val db = initArangoDb()
-        val collection = db.collection(collectionName)
+        val collection = database.collection(collectionName)
         var result = collection.getDocument(key, String::class.java)
         return result
     }
@@ -26,8 +31,8 @@ object ArangoDbAccess {
     fun initArangoDb(): ArangoDatabaseAsync {
         println("Init DB...")
 
-        val arangoDb = ArangoDBAsync.Builder()
-                    .host("127.0.0.1", 8529)
+        var arangoDb = ArangoDBAsync.Builder()
+                    .host(host, port)
                     .user(user)
                     .password(password)
                 .build()

@@ -1,7 +1,11 @@
 FROM openjdk:8-jre-alpine
 
 ENV APP_SLEEP 0
-ENV APPLICATION_PORT 9090
+ENV APP_PORT 9090
+ENV ARANGO_HOST 0.0.0.0
+ENV ARANGO_PORT 8529
+ENV ARANGO_USER user
+ENV ARANGO_PASSWORD password
 
 # add directly the jar
 ADD build/libs/*.jar /app.jar
