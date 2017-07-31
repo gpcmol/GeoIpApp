@@ -1,13 +1,8 @@
 package nl.molnet.app
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Vertx
 import io.vertx.ext.web.Router
-import java.time.Duration
-import java.util.concurrent.*
-import java.util.concurrent.Executors.newScheduledThreadPool
-import java.util.concurrent.CompletableFuture
 
 object WebApp : AbstractVerticle() {
 
@@ -20,10 +15,8 @@ object WebApp : AbstractVerticle() {
             val ip = it.request().getParam("ip")
             var future = ArangoDbAccess.getDocumentByKey(ip)
 
-            val responseFuture = within(future, Duration.ofSeconds(1))
-
-            responseFuture
-                    .thenAccept({ r ->
+            future
+                    .thenAcceptAsync({ r ->
                         if (r == null) {
                             it.response().end("{}")
                         } else {
@@ -37,35 +30,11 @@ object WebApp : AbstractVerticle() {
                         //it.fail(throwable)
                         null
                     })
-
         }
 
         vertx.createHttpServer().requestHandler {
             router.accept(it)
         }.listen(AppConfig.APP_PORT.toInt())
     }
-
-    fun <A> identity(): (A) -> A = {it}
-
-    fun <T> within(future: CompletableFuture<T>, duration: Duration): CompletableFuture<T> {
-        val timeout = failAfter<T>(duration)
-        return future.applyToEither(timeout, identity())
-    }
-
-    fun <T> failAfter(duration: Duration): CompletableFuture<T> {
-        val promise = CompletableFuture<T>()
-        scheduler.schedule<Boolean>({
-            val ex = TimeoutException("Timeout after " + duration)
-            promise.completeExceptionally(ex)
-        }, duration.toMillis(), TimeUnit.MILLISECONDS)
-        return promise
-    }
-
-    private val scheduler = newScheduledThreadPool(
-            1,
-            ThreadFactoryBuilder()
-                    .setDaemon(true)
-                    .setNameFormat("failAfter-%d")
-                    .build())
 
 }

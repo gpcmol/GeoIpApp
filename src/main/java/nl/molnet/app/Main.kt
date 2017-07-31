@@ -15,7 +15,7 @@ object Main {
 
         WebApp.start()
         //Main.import()
-        println("finished app")
+        //println("finished app")
     }
 
     fun import() {
